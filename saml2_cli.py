@@ -70,7 +70,7 @@ def make_request(binding, message, destination, key):
         print('URL: {}'.format(url))
         extra = {'SAMLRequest': encoded_message}
         req_args = [url, extra]
-    response = getattr(requests, method)(*req_args)
+    response = getattr(requests, method)(*req_args, verify=False)
     print('RESPONSE: {}'. format(response.text))
 
 
