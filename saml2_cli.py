@@ -9,7 +9,10 @@ import zlib
 from Crypto.Hash import SHA256
 from Crypto.Signature import PKCS1_v1_5
 from Crypto.PublicKey import RSA
-from urllib import urlencode
+try:
+    from urllib import urlencode
+except ImportError:
+    from urllib.parse import urlencode
 
 
 BINDING_HTTP_REDIRECT = 'urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect'
@@ -27,7 +30,7 @@ def deflate_and_base64_encode(msg):
 
 BINDINGS_TO_SAML2BINDINGS = {
     'redirect':  (BINDING_HTTP_REDIRECT, 'get', deflate_and_base64_encode),
-    'post': (BINDING_HTTP_POST, 'post', base64.encode)
+    'post': (BINDING_HTTP_POST, 'post', base64.b64encode)
 }
 
 
@@ -38,9 +41,13 @@ def load_pkey_from_file(path):
 
 def make_request(binding, message, destination, key):
     _binding, method, encoding = BINDINGS_TO_SAML2BINDINGS.get(binding)
-    with open(message, 'r') as fp:
+    print('BINDING: {}'.format(binding))
+    print('METHOD: {}'.format(binding))
+    print('DESTINATION: {}'.format(destination))
+    with open(message, 'rb') as fp:
         message = fp.read()
     encoded_message = encoding(message)
+    print('ENCODED MESSAGE: {}'.format(encoded_message))
     if _binding == BINDING_HTTP_REDIRECT:
         arguments = {
             'SAMLRequest': encoded_message,
@@ -51,15 +58,20 @@ def make_request(binding, message, destination, key):
         digest = SHA256.new()
         digest.update(query_string)
         private_key = load_pkey_from_file(key)
-        print(private_key)
         signer = PKCS1_v1_5.new(private_key)
         signed = signer.sign(digest)
         arguments['Signature'] = base64.b64encode(signed)
         query_string = urlencode(arguments)
         url = '{}?{}'.format(destination, query_string)
-        print(url)
-        response = getattr(requests, method)(url)
-        print(response.text)
+        print('URL: {}'.format(url))
+        req_args = [url]
+    elif _binding == BINDING_HTTP_POST:
+        url = destination
+        print('URL: {}'.format(url))
+        extra = {'SAMLRequest': encoded_message}
+        req_args = [url, extra]
+    response = getattr(requests, method)(*req_args)
+    print('RESPONSE: {}'. format(response.text))
 
 
 if __name__ == '__main__':
