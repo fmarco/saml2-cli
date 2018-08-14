@@ -1,2 +1,4 @@
 requests==2.19.1
 pycrypto==2.6.1
+signxml==2.5.2
+lxml==4.2.4

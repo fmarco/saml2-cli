@@ -6,11 +6,11 @@ To install:
 
 Arguments:
 ~~~~
---binding BINDING   SAML2 binding
---dest DESTINATION  Idp url
---msg MSG           SAML2 request
---type MSG          SAML2 request
---key KEY           Path to the private key
+  --binding BINDING   SAML2 binding
+  --dest DESTINATION  Idp url
+  --msg MSG           SAML2 request
+  --key KEY           Path to the private key
+  --cert CERT         Path to the certificate
 ~~~~
 
 To run:

@@ -5,7 +5,8 @@ import argparse
 import base64
 import requests
 import zlib
-
+from lxml import etree
+from signxml import XMLSigner
 from Crypto.Hash import SHA256
 from Crypto.Signature import PKCS1_v1_5
 from Crypto.PublicKey import RSA
@@ -39,16 +40,16 @@ def load_pkey_from_file(path):
         return RSA.importKey(fp.read())
 
 
-def make_request(binding, message, destination, key):
+def make_request(binding, message, destination, key, cert):
     _binding, method, encoding = BINDINGS_TO_SAML2BINDINGS.get(binding)
     print('BINDING: {}'.format(binding))
     print('METHOD: {}'.format(binding))
     print('DESTINATION: {}'.format(destination))
     with open(message, 'rb') as fp:
         message = fp.read()
-    encoded_message = encoding(message)
-    print('ENCODED MESSAGE: {}'.format(encoded_message))
     if _binding == BINDING_HTTP_REDIRECT:
+        encoded_message = encoding(message)
+        print('ENCODED MESSAGE: {}'.format(encoded_message))
         arguments = {
             'SAMLRequest': encoded_message,
             'SigAlg': SIG_RSA_SHA256
@@ -66,6 +67,19 @@ def make_request(binding, message, destination, key):
         print('URL: {}'.format(url))
         req_args = [url]
     elif _binding == BINDING_HTTP_POST:
+        signer = XMLSigner(
+            signature_algorithm='rsa-sha256',
+            digest_algorithm='sha256',
+        )
+        root = etree.fromstring(message)
+        _key = open(key, 'rb').read()
+        _cert = open(cert, 'rb').read()
+        print(_key, _cert)
+        signed_root = signer.sign(root, key=_key, cert=_cert)
+        message = etree.tostring(signed_root)
+        print('SIGNED XML: {}'.format(message))
+        encoded_message = encoding(message)
+        print('ENCODED MESSAGE: {}'.format(encoded_message))
         url = destination
         print('URL: {}'.format(url))
         extra = {'SAMLRequest': encoded_message}
@@ -89,13 +103,12 @@ if __name__ == '__main__':
         help='SAML2 request'
     )
     parser.add_argument(
-        '--type', dest='msg',
-        help='SAML2 request'
-    )
-    parser.add_argument(
         '--key', dest='key',
         help='Path to the private key'
     )
+    parser.add_argument(
+        '--cert', dest='cert',
+        help='Path to the certificate'
+    )
     args = parser.parse_args()
-    make_request(args.binding, args.msg, args.destination, args.key)
-
+    make_request(args.binding, args.msg, args.destination, args.key, args.cert)
